@@ -5,19 +5,16 @@ const axios = require('axios');
 const app = express();
 const port = 3000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
 const STOCK_EXCHANGE_API = 'http://20.244.56.144/evaluation-service';
 const ACCESS_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJNYXBDbGFpbXMiOnsiZXhwIjoxNzQ3MDYyMDk2LCJpYXQiOjE3NDcwNjE3OTYsImlzcyI6IkFmZm9yZG1lZCIsImp0aSI6ImQ5YTAzYmVkLTJjNmYtNGVjMi05ZDJiLTVkOTg0ZmMyNjUxOCIsInN1YiI6Im5pcmFuamFuLmdhbGxhLjdAZ21haWwuY29tIn0sImVtYWlsIjoibmlyYW5qYW4uZ2FsbGEuN0BnbWFpbC5jb20iLCJuYW1lIjoiZ2FsbGEgbmlyYW5qYW4iLCJyb2xsTm8iOiJjYi5lbi51NGNzZTIyMTYyIiwiYWNjZXNzQ29kZSI6IlN3dXVLRSIsImNsaWVudElEIjoiZDlhMDNiZWQtMmM2Zi00ZWMyLTlkMmItNWQ5ODRmYzI2NTE4IiwiY2xpZW50U2VjcmV0IjoiYnJka0JNa3loS0tkeVJyWiJ9.aTVq4vgsf9q_6ZXIbJD9oOtnJoYnt_AIajSyWyJQ2Ls';
 
-// Cache for stock listings
 let stockListings = null;
 let lastStockListingsUpdate = null;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000; 
 
-// Helper function to get stock listings with caching
 async function getStockListings() {
     const now = Date.now();
     if (stockListings && lastStockListingsUpdate && (now - lastStockListingsUpdate < CACHE_DURATION)) {
@@ -25,14 +22,14 @@ async function getStockListings() {
     }
 
     try {
-        console.log('Using token:', ACCESS_TOKEN); // Debug log
+        console.log('Using token:', ACCESS_TOKEN); 
         const response = await axios.get(`${STOCK_EXCHANGE_API}/stocks`, {
             headers: {
                 'Authorization': `Bearer ${ACCESS_TOKEN}`
             }
         });
-        console.log('API Response:', response.data); // Debug log
-        stockListings = response.data; // Store the full response object
+        console.log('API Response:', response.data); 
+        stockListings = response.data; 
         lastStockListingsUpdate = now;
         return stockListings;
     } catch (error) {
@@ -59,7 +56,7 @@ async function getStockPriceHistory(ticker, minutes) {
         });
         console.log('Response data:', response.data);
         
-        // Ensure we have enough data points
+      
         if (!Array.isArray(response.data) || response.data.length < 2) {
             throw new Error(`Not enough data points for ${ticker}. Need at least 2 points.`);
         }
@@ -75,7 +72,7 @@ async function getStockPriceHistory(ticker, minutes) {
     }
 }
 
-// GET /stocks endpoint
+
 app.get('/stocks', async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
@@ -85,7 +82,7 @@ app.get('/stocks', async (req, res) => {
         
         const stocksObj = await getStockListings();
         
-        // Convert the stocks object to an array of { name, ticker }
+    
         let stocksArray = [];
         if (stocksObj && typeof stocksObj.stocks === 'object' && !Array.isArray(stocksObj.stocks)) {
             stocksArray = Object.entries(stocksObj.stocks).map(([name, ticker]) => ({ name, ticker }));
@@ -96,7 +93,7 @@ app.get('/stocks', async (req, res) => {
             });
         }
         
-        // Apply filters if provided
+       
         if (company) {
             stocksArray = stocksArray.filter(stock => 
                 stock.name.toUpperCase().includes(company) || 
@@ -105,18 +102,18 @@ app.get('/stocks', async (req, res) => {
         }
         
         if (exchange) {
-            // Map of known exchanges and their ticker patterns
+          
             const exchangePatterns = {
-                'NYSE': /^[A-Z]{1,4}$/,  // NYSE tickers are 1-4 letters
-                'NASDAQ': /^[A-Z]{4}$/,  // NASDAQ tickers are typically 4 letters
-                'AMEX': /^[A-Z]{1,5}$/   // AMEX tickers are 1-5 letters
+                'NYSE': /^[A-Z]{1,4}$/,  
+                'NASDAQ': /^[A-Z]{4}$/,  
+                'AMEX': /^[A-Z]{1,5}$/  
             };
             
             const pattern = exchangePatterns[exchange];
             if (pattern) {
                 stocksArray = stocksArray.filter(stock => pattern.test(stock.ticker));
             } else {
-                // If exchange is not recognized, return empty result
+                
                 stocksArray = [];
             }
         }
@@ -141,7 +138,7 @@ app.get('/stocks', async (req, res) => {
     }
 });
 
-// GET /stocks/:ticker endpoint
+
 app.get('/stocks/:ticker', async (req, res) => {
     try {
         const { ticker } = req.params;
@@ -163,7 +160,7 @@ app.get('/stocks/:ticker', async (req, res) => {
             return res.status(404).json({ error: 'No price data available for the specified time range' });
         }
 
-        // Calculate average price
+        
         const averagePrice = priceHistory.reduce((sum, price) => sum + price.price, 0) / priceHistory.length;
 
         const response = {
@@ -178,22 +175,22 @@ app.get('/stocks/:ticker', async (req, res) => {
     }
 });
 
-// Helper: Interpolate missing data points
+
 function interpolateDataPoints(data1, data2) {
-    // Get all unique timestamps
+ 
     const allTimestamps = new Set([
         ...data1.map(d => d.lastUpdatedAt),
         ...data2.map(d => d.lastUpdatedAt)
     ]);
     
-    // Sort timestamps
+    
     const sortedTimestamps = Array.from(allTimestamps).sort();
     
-    // Create maps for quick lookup
+   
     const map1 = new Map(data1.map(d => [d.lastUpdatedAt, d.price]));
     const map2 = new Map(data2.map(d => [d.lastUpdatedAt, d.price]));
     
-    // Interpolate missing points
+
     const interpolated1 = [];
     const interpolated2 = [];
     
@@ -202,7 +199,7 @@ function interpolateDataPoints(data1, data2) {
         let price1 = map1.get(ts);
         let price2 = map2.get(ts);
         
-        // If price is missing, interpolate
+     
         if (price1 === undefined) {
             const prevTs = sortedTimestamps.slice(0, i).reverse().find(t => map1.has(t));
             const nextTs = sortedTimestamps.slice(i + 1).find(t => map1.has(t));
@@ -244,7 +241,7 @@ function interpolateDataPoints(data1, data2) {
     return [interpolated1, interpolated2];
 }
 
-// GET /stockcorrelation endpoint
+
 app.get('/stockcorrelation', async (req, res) => {
     try {
         const { minutes } = req.query;
@@ -290,13 +287,13 @@ app.get('/stockcorrelation', async (req, res) => {
             });
         }
 
-        // Calculate correlation using interpolated data
+       
         const correlation = pearsonCorrelation(
             interpolated1.map(p => p.price),
             interpolated2.map(p => p.price)
         );
 
-        // Calculate average prices
+       
         const avg1 = interpolated1.reduce((a, b) => a + b.price, 0) / interpolated1.length;
         const avg2 = interpolated2.reduce((a, b) => a + b.price, 0) / interpolated2.length;
 
@@ -333,7 +330,7 @@ app.get('/stockcorrelation', async (req, res) => {
     }
 });
 
-// Helper: Pearson correlation
+
 function pearsonCorrelation(x, y) {
     const n = x.length;
     if (n < 2) return 0;
@@ -351,7 +348,7 @@ function pearsonCorrelation(x, y) {
     return num / Math.sqrt(denomX * denomY);
 }
 
-// Start the server
+
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 }); 
